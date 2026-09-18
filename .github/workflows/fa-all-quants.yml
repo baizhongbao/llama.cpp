@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: fa-all-quants
-  queue: true
+  cancel-in-progress: true
 
 jobs:
   build:
