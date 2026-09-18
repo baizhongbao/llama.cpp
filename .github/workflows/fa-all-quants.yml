@@ -1,0 +1,44 @@
+name: fa-all-quants-cuda-windows
+
+on:
+  push:
+    branches: [ fa-build ]
+  workflow_dispatch:
+
+concurrency:
+  group: fa-all-quants
+  queue: fast
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - name: Clone
+        uses: actions/checkout@v6
+        with:
+          ref: 9d77fa172
+          fetch-depth: 1
+
+      - name: Install Cuda Toolkit 12.4
+        uses: ./.github/actions/windows-setup-cuda
+        with:
+          cuda_version: 12.4
+          cuda_arch: x64
+
+      - name: Install Ninja
+        run: choco install ninja
+
+      - name: Build ggml-cuda with GGML_CUDA_FA_ALL_QUANTS=ON
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+          cmake -S . -B build -G "Ninja Multi-Config" -DGGML_BACKEND_DL=ON -DGGML_NATIVE=OFF -DGGML_CPU=OFF -DGGML_CUDA=ON -DGGML_CUDA_FA_ALL_QUANTS=ON -DGGML_CUDA_CUB_3DOT2=ON -DLLAMA_BUILD_BORINGSSL=ON
+          set /A NINJA_JOBS=%NUMBER_OF_PROCESSORS%-1
+          cmake --build build --config Release -j %NINJA_JOBS% --target ggml-cuda
+
+      - name: Upload ggml-cuda.dll artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ggml-cuda-fa-all-quants
+          path: build/bin/Release/ggml-cuda.dll
